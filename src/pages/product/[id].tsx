@@ -1,3 +1,5 @@
+import { IProduct } from "@/components/contexts/CartContext"
+import { useCart } from "@/hooks/useCart"
 import { stripe } from "@/lib/stripe"
 import axios from "axios"
 import { GetStaticPaths, GetStaticProps } from "next"
@@ -9,36 +11,16 @@ import Stripe from "stripe"
 import { ImageContainer, ProductContainer, ProductDetails } from "../../styles/pages/product"
 
 interface ProductProps {
-    product: {
-      id: string;
-      name: string;
-      imageUrl: string;
-      price: string;
-      description: string;
-      defaultPriceId: string;
-    }
-  }
+    product: IProduct;
+  };
 
 export default function Product({ product } : ProductProps) {
     const [isCreatingCheckoutSession, setIsCreatingCheckoutSession] = useState(false);
     const {isFallback } = useRouter()
-    async function handleBuyProduct() {
-        try {
-            setIsCreatingCheckoutSession(true);
-            const response = await axios.post('/api/checkout', {
-                priceId: product.defaultPriceId,
-            })
-        
-            const { checkoutUrl }= response.data;
 
-            window.location.href = checkoutUrl;
-        } catch(err)
-        {
-            //Conectar com alguma ferramenta de observabilidade
-            setIsCreatingCheckoutSession(false);
-            alert('Falha ao redirecionar checkout!');
-        }
-  }
+    const { checkIfItemAlreadyExists, addToCart } = useCart();
+
+    const itemAlreadyInCart = checkIfItemAlreadyExists(product.id);
 
   if(isFallback)
   {
@@ -62,8 +44,10 @@ export default function Product({ product } : ProductProps) {
 
         <p>{product.description}</p>
 
-        <button disabled={isCreatingCheckoutSession} onClick={handleBuyProduct}>
-          Comprar agora
+        <button disabled={itemAlreadyInCart} onClick={() => addToCart(product)}>
+          {itemAlreadyInCart ? 
+          "Produto já está no carrinho" :
+          "Colocar na sacola"}
         </button>
       </ProductDetails>
     </ProductContainer>
@@ -100,6 +84,7 @@ export const getStaticProps: GetStaticProps<any, { id: string }> = async ({ para
                     currency:'BRL'
                 }).format(price.unit_amount ? price.unit_amount/100 : 0),
                 description: product.description,
+                numberPrice: price.unit_amount / 100,
                 defaultPriceId: price.id
             }
         },

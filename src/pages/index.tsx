@@ -1,4 +1,5 @@
 import { HomeContainer, Product } from "@/styles/pages/home";
+import CartButton from '../components/CartButton'
 import { GetStaticProps } from "next";
 import Head from 'next/head';
 import 'keen-slider/keen-slider.min.css';
@@ -7,15 +8,13 @@ import { useKeenSlider } from 'keen-slider/react';
 import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
 import Link from "next/link";
+import { useCart } from "@/hooks/useCart";
+import { IProduct } from "@/components/contexts/CartContext";
+import { MouseEvent } from "react";
 
 interface HomeProps {
-  products:{
-    id:string,
-    name:string,
-    imageUrl:string,
-    price:string,
-  }[]
-}
+  products: IProduct[]
+};
 
 export default function Home({ products }:HomeProps) {
   const [sliderRef] = useKeenSlider({
@@ -24,6 +23,14 @@ export default function Home({ products }:HomeProps) {
       spacing: 48,
     }
   })
+
+  const { addToCart, checkIfItemAlreadyExists } = useCart();
+
+  function handleAddToCart(e: MouseEvent<HTMLButtonElement>, product: IProduct)
+  {
+    e.preventDefault();
+    addToCart(product);
+  }
 
   return (
     <>
@@ -37,8 +44,17 @@ export default function Home({ products }:HomeProps) {
             <Product className="keen-slider__slide">
               <Image src={product.imageUrl} width={520} height={480} alt="" />
               <footer>
-                <strong>{product.name}</strong>
-                <span>{product.price}</span>
+                <div>
+                  <strong>{product.name}</strong>
+                  <span>{product.price}</span>
+                </div>
+                <CartButton 
+                  onClick={(e) => handleAddToCart(e,product)}
+                  // disabled={checkIfItemAlreadyExists} 
+                  disabled={checkIfItemAlreadyExists(product.id)}  
+                  color={'green'}
+                  size={'large'}
+                  />
               </footer>
             </Product>
           </Link>
@@ -68,6 +84,8 @@ export const getStaticProps: GetStaticProps = async () => {
         style:'currency',
         currency:'BRL'
       }).format(price.unit_amount ? price.unit_amount/100 : 0),
+      numberPrice: price.unit_amount / 100,
+      defaultPriceId: price.id, 
     }
   })
   
